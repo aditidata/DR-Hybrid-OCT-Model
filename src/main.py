@@ -31,8 +31,11 @@ def main():
         device=device
     )
 
-    # ================= GRAD-CAM =================
-     # ================= MULTI IMAGE GRAD-CAM =================
+    # -------- SAVE TRAINED MODEL --------
+    torch.save(model.state_dict(), "outputs/checkpoints/model.pth")
+    print("✅ Model saved to outputs/checkpoints/model.pth")
+
+    # ================= MULTI IMAGE GRAD-CAM =================
     print("\nRunning Grad-CAM for multiple validation images...")
 
     model.eval()
@@ -42,7 +45,7 @@ def main():
     grad_cam = GradCAM(model, target_layer)
 
     save_count = 0
-    max_images = 15   # how many Grad-CAM images you want
+    max_images = 60   # number of Grad-CAM images to save
 
     for imgs, labels in val_loader:
         imgs = imgs.to(device)
