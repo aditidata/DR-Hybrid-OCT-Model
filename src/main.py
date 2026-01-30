@@ -32,37 +32,58 @@ def main():
     )
 
     # ================= GRAD-CAM =================
-    print("\nRunning Grad-CAM visualization...")
+     # ================= MULTI IMAGE GRAD-CAM =================
+    print("\nRunning Grad-CAM for multiple validation images...")
 
     model.eval()
 
-    # Take one validation image
-    sample_imgs, sample_labels = next(iter(val_loader))
-    sample_img = sample_imgs[0].unsqueeze(0).to(device)
-
     # Target layer for ResNet-18
     target_layer = model.model.layer4[-1].conv2
-
     grad_cam = GradCAM(model, target_layer)
-    cam = grad_cam.generate(sample_img)
 
-    # Convert image tensor to numpy
-    img = sample_img.squeeze().permute(1, 2, 0).cpu().numpy()
-    img = (img - img.min()) / (img.max() - img.min())
+    save_count = 0
+    max_images = 15   # how many Grad-CAM images you want
 
-    heatmap = cv2.applyColorMap(
-        np.uint8(255 * cam),
-        cv2.COLORMAP_JET
-    )
+    for imgs, labels in val_loader:
+        imgs = imgs.to(device)
 
-    overlay = 0.6 * heatmap / 255 + img
+        outputs = model(imgs)
+        preds = outputs.argmax(dim=1)
 
-    cv2.imwrite(
-        "outputs/gradcam/gradcam_example.png",
-        np.uint8(255 * overlay)
-    )
+        for i in range(imgs.size(0)):
+            if save_count >= max_images:
+                break
 
-    print("✅ Grad-CAM saved to outputs/gradcam/gradcam_example.png")
+            img_tensor = imgs[i].unsqueeze(0)
+
+            # Generate Grad-CAM
+            cam = grad_cam.generate(img_tensor)
+
+            # Convert tensor image to numpy
+            img_np = img_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
+            img_np = (img_np - img_np.min()) / (img_np.max() - img_np.min() + 1e-8)
+
+            # Create heatmap and overlay
+            heatmap = cv2.applyColorMap(
+                np.uint8(255 * cam),
+                cv2.COLORMAP_JET
+            )
+
+            overlay = 0.6 * heatmap / 255 + img_np
+            overlay = np.uint8(255 * overlay)
+
+            pred_class = preds[i].item()
+
+            filename = f"outputs/gradcam/sample_{save_count}_pred{pred_class}.png"
+            cv2.imwrite(filename, overlay)
+
+            print(f"Saved {filename}")
+            save_count += 1
+
+        if save_count >= max_images:
+            break
+
+    print("✅ Multiple Grad-CAM images saved in outputs/gradcam/")
 
 
 if __name__ == "__main__":
